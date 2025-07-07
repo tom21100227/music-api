@@ -34,14 +34,22 @@ const APPLE_RECENTLY_PLAYED_ENDPOINT = `https://api.music.apple.com/v1/me/recent
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
-    // Check if there is a cached result first
-    const cachedResult = await env.RESULT_CACHE.get('now_playing_result', { type: 'json' });
-
-    if (cachedResult) {
-      return new Response(JSON.stringify(cachedResult, null, 2), {
-        headers: { 'Content-Type': 'application/json', 'X-Cache-Status': 'HIT' },
-      });
+    // If the request specified cache=false, skip the cache
+    if (new URL(request.url).searchParams.get('noCache') === 'true') {
+      console.log('Cache bypassed due to request parameter.');
+      env.RESULT_CACHE.delete('now_playing_result');
+    } else {
+      // Check if there is a cached result first
+      const cachedResult = await env.RESULT_CACHE.get('now_playing_result', { type: 'json' });
+  
+      if (cachedResult) {
+        console.log("Cache Hit")
+        return new Response(JSON.stringify(cachedResult, null, 2), {
+          headers: { 'Content-Type': 'application/json', 'X-Cache-Status': 'HIT' },
+        });
+      }
     }
+    
 
     const appleMusicUserToken = env.APPLE_MUSIC_USER_TOKEN;
 
