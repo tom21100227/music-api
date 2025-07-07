@@ -48,6 +48,5 @@ TODO: Explain how to get these, but you can use AI.
 
 ## Roadmap
 
-- [ ] Fix TypeScript types
 - [ ] Add support for more music services (If I use ever use them)
 - [ ] Add tests
