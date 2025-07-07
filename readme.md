@@ -1,6 +1,6 @@
-# Music API
+# Now Playing API
 
-This is a simple API that's intended to be used with Cloudflare Workers. It provides a way to fetch the currently/recently played song from either Apple Music or Spotify, depending on which service is currently playing music. There's only one endpoint, `/`, which returns the currently playing song in JSON format.
+This is a simple API that's intended to be used with Cloudflare Workers. It provides a way to fetch the currently/recently played song of an arbitrary user from either Apple Music or Spotify, depending on which service is currently playing music. There's only one endpoint, `/`, which returns the currently playing song in JSON format.
 
 This API is used by [my personal webpage.](https://tomhcy.com)
 
@@ -50,4 +50,5 @@ TODO: Explain how to get these, but you can use AI.
 ## Roadmap
 
 - [ ] Add support for more music services (If I use ever use them)
+- [ ] Add tutorials for how to set this whole thing up with Cloudflare Workers
 - [ ] Add tests
