@@ -268,11 +268,16 @@ async function getAppleMusicData(env: Env, musicUserToken: string) {
 
     // If the current song is the same one we have in cache, it could be old. 
     if (cachedState && cachedState.songId === songId) {
-      if (cachedState.cachedAt > oneSongAgo) {
-        // The cached sone is not being played live, return with isLive = false
+      if (Date.now() > oneSongAgo) {
+        // The cached song is not being played live, return with isLive = false
+        console.log('Using cached song (not playing):', lastSong.attributes.name);
         return formatAppleSong(lastSong, false, cachedState.cachedAt);
       } else {
         // The cached song is being played live, return with isLive = true
+        console.log('Using cached song (playing):', lastSong.attributes.name);
+        console.log('Cached at:', new Date(cachedState.cachedAt).toISOString());
+        console.log("Current time:", new Date().toISOString());
+        console.log("One song ago:", new Date(oneSongAgo).toISOString());
         return formatAppleSong(lastSong, true, cachedState.cachedAt);
       }
     } else {
