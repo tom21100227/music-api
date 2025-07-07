@@ -37,6 +37,7 @@ interface ApiResponse {
   isPlaying: boolean;
   timeStamp: string;
   source?: string;
+  duration?: number; // Duration in milliseconds
   title?: string;
   artist?: string;
   album?: string;
@@ -92,8 +93,9 @@ export default {
 
     if (responseData.success) {
       ctx.waitUntil(
+        // Cache the result with a TTL based on the duration of the song, or a default of 120 seconds. TTL is capped at 600 seconds (10 minutes).
         env.RESULT_CACHE.put('now_playing_result', JSON.stringify(responseData), {
-          expirationTtl: 120,
+          expirationTtl: responseData.duration ? Math.min(Math.floor(responseData.duration / 1000), 600) : 120,
         })
       );
     }
@@ -168,6 +170,7 @@ async function getNowPlaying(accessToken: string) {
     success: true,
     source: 'Spotify',
     timeStamp: new Date(song.timestamp).toISOString(),
+    duration: song.item.duration_ms, // Duration in milliseconds
     isPlaying: song.is_playing,
     title: song.item.name,
     artist: song.item.artists.map((_artist: any) => _artist.name).join(', '),
@@ -262,6 +265,7 @@ function formatAppleSong(song: any, isLive: boolean, timestamp: number) {
     source: 'Apple Music',
     timeStamp: new Date(timestamp).toISOString(),
     isPlaying: isLive, // We still say true, but the 'isLive' flag gives more context.
+    duration: song.attributes.durationInMillis, // Duration in milliseconds
     title: song.attributes.name,
     artist: song.attributes.artistName,
     album: song.attributes.albumName,

@@ -13,6 +13,7 @@ On success, the API will return a JSON object with the following structure:
   "source": "Apple Music",
   "timeStamp": "2025-07-07T04:56:04.848Z",
   "isPlaying": false,
+  "duration": 180000, // Duration in milliseconds
   "title": "Love Is Everywhere",
   "artist": "Magdalena Bay",
   "album": "Imaginal Disk",
