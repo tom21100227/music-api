@@ -229,7 +229,7 @@ async function getAppleMusicData(env: Env, musicUserToken: string) {
     const lastSong = data[0];
     const songId = lastSong.id;
 
-    const cachedState: AppleCacheState | null = await env.APPLE_STATE_CACHE.get('apple_music_state', { type: 'json' });
+    const cachedState: AppleCacheState | null = await env.APPLE_STATE_CACHE.get('last_apple_song', { type: 'json' });
 
     const fiveMinutesAgo = Date.now() - 5 * 60 * 1000; // 5 minutes in milliseconds
 
