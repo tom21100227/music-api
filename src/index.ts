@@ -95,7 +95,7 @@ export default {
       ctx.waitUntil(
         // Cache the result with a TTL based on the duration of the song, or a default of 120 seconds. TTL is capped at 600 seconds (10 minutes).
         env.RESULT_CACHE.put('now_playing_result', JSON.stringify(responseData), {
-          expirationTtl: responseData.duration ? Math.min(Math.floor(responseData.duration / 1000), 600) : 120,
+          expirationTtl: responseData.duration != null ? Math.min(Math.floor(responseData.duration / 1000), 600) : 120,
         })
       );
     }
