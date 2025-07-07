@@ -232,16 +232,24 @@ async function getAppleMusicData(env: Env, musicUserToken: string) {
     const lastSong = data[0];
     const songId = lastSong.id;
 
+    const durationInMillis = lastSong.attributes.durationInMillis;
+
     const cachedState: AppleCacheState | null = await env.APPLE_STATE_CACHE.get('last_apple_song', { type: 'json' });
 
-    const fiveMinutesAgo = Date.now() - 5 * 60 * 1000; // 5 minutes in milliseconds
+    const oneSongAgo = Date.now() - durationInMillis
 
 
-    // If the current song is the same one we have in cache, and it was cached recently, it's "live".
-    if (cachedState && cachedState.songId === songId && cachedState.cachedAt > fiveMinutesAgo) {
-      return formatAppleSong(lastSong, true, cachedState.cachedAt);
+    // If the current song is the same one we have in cache, it could be old. 
+    if (cachedState && cachedState.songId === songId) {
+      if (cachedState.cachedAt > oneSongAgo) {
+        // The cached sone is not being played live, return with isLive = false
+        return formatAppleSong(lastSong, false, cachedState.cachedAt);
+      } else {
+        // The cached song is being played live, return with isLive = true
+        return formatAppleSong(lastSong, true, cachedState.cachedAt);
+      }
     } else {
-      // Otherwise, it's a new song. Update the state cache and return it as not live.
+      // There's a new song, so we update the cache with the new song ID and current timestamp.
       const newState: AppleCacheState = { songId: songId, cachedAt: Date.now() };
       await env.APPLE_STATE_CACHE.put('last_apple_song', JSON.stringify(newState));
       return formatAppleSong(lastSong, false, Date.now());
