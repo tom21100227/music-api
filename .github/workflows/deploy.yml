@@ -17,6 +17,6 @@ jobs:
       - name: Deploy
         # This step uses the Cloudflare API Token to get permission to deploy.
         # It doesn't need to know about any of your other secrets.
-        run: npx wrangler deploy
+        run: npx wrangler deploy --tag "v0.${{ github.run_number }}" --message "GA - {{ github.event.head_commit.message || Manual Deployment }}"
         env:
           CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
