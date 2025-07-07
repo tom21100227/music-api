@@ -3,7 +3,8 @@ name: Deploy to Cloudflare Workers
 on:
   push:
     branches:
-      - main
+      - master
+  workflow_dispatch: # Allows manual triggering of the workflow
 
 jobs:
   deploy:
