@@ -95,7 +95,7 @@ export default {
 async function getSpotifyData(env: Env) {
   const accessToken = await getAccessToken(env);
   if (!accessToken) {
-    return { isPlaying: false, error: 'Could not get access token.' };
+    return { success: false, isPlaying: false, error: 'Could not get access token for Spotify.' };
   }
   return getNowPlaying(accessToken);
 }
@@ -194,7 +194,7 @@ interface AppleCacheState {
 async function getAppleMusicData(env: Env, musicUserToken: string) {
   const developerToken = await getAppleDeveloperToken(env);
   if (!developerToken || !musicUserToken) {
-    return { isPlaying: false, error: 'Could not generate Apple Developer Token.' };
+    return { success: false, isPlaying: false, error: 'Could not generate Apple Developer Token.' };
   }
 
   try {
