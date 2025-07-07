@@ -27,10 +27,38 @@ export interface Env {
   APPLE_STATE_CACHE: KVNamespace;
 }
 
-// Spotify API endpoints
+// API endpoints
 const NOW_PLAYING_ENDPOINT = `https://api.spotify.com/v1/me/player/currently-playing`;
 const TOKEN_ENDPOINT = `https://accounts.spotify.com/api/token`;
 const APPLE_RECENTLY_PLAYED_ENDPOINT = `https://api.music.apple.com/v1/me/recent/played/tracks?limit=1`;
+
+// Cache Configuration
+const DEFAULT_CACHE_TTL = 120; // Default cache TTL in seconds
+const MAX_CACHE_TTL = 600; // Maximum cache TTL in seconds (10 minutes)
+
+// HTTP Status Codes
+const HTTP_NO_CONTENT = 204; // Spotify returns this when nothing is playing
+const HTTP_OK = 200; // Standard OK response
+const HTTP_UNAUTHORIZED = 401; // Unauthorized response
+
+// / Time Constants
+const MILLISECONDS_PER_SECOND = 1000;
+const APPLE_TOKEN_EXPIRY = '1h';
+
+// Image Dimensions
+const ALBUM_IMAGE_WIDTH = '500';
+const ALBUM_IMAGE_HEIGHT = '500';
+
+// Cache Keys
+const NOW_PLAYING_CACHE_KEY = 'now_playing_result';
+const APPLE_SONG_CACHE_KEY = 'last_apple_song';
+
+// URL Parameters
+const NO_CACHE_PARAM = 'noCache';
+const NO_CACHE_VALUE = 'true';
+
+// JWT Configuration
+const JWT_ALGORITHM = 'ES256';
 
 interface ApiResponse {
   success: boolean;
@@ -52,10 +80,10 @@ export default {
     // If the request specified cache=false, skip the cache
     if (new URL(request.url).searchParams.get('noCache') === 'true') {
       console.log('Cache bypassed due to request parameter.');
-      env.RESULT_CACHE.delete('now_playing_result');
+      env.RESULT_CACHE.delete(NOW_PLAYING_CACHE_KEY);
     } else {
       // Check if there is a cached result first
-      const cachedResult = await env.RESULT_CACHE.get('now_playing_result', { type: 'json' });
+      const cachedResult = await env.RESULT_CACHE.get(NOW_PLAYING_CACHE_KEY, { type: 'json' });
 
       if (cachedResult) {
         console.log("Cache Hit")
@@ -94,8 +122,8 @@ export default {
     if (responseData.success) {
       ctx.waitUntil(
         // Cache the result with a TTL based on the duration of the song, or a default of 120 seconds. TTL is capped at 600 seconds (10 minutes).
-        env.RESULT_CACHE.put('now_playing_result', JSON.stringify(responseData), {
-          expirationTtl: responseData.duration ? Math.min(Math.floor(responseData.duration / 1000), 600) : 120,
+        env.RESULT_CACHE.put(NOW_PLAYING_CACHE_KEY, JSON.stringify(responseData), {
+          expirationTtl: responseData.duration ? Math.min(Math.floor(responseData.duration / 1000), MAX_CACHE_TTL) : DEFAULT_CACHE_TTL,
         })
       );
     }
@@ -150,7 +178,7 @@ async function getNowPlaying(accessToken: string) {
   });
 
   // If nothing is playing, Spotify returns a 204 No Content response.
-  if (response.status === 204) {
+  if (response.status === HTTP_NO_CONTENT) {
     return { success: true, isPlaying: false, timeStamp: new Date(0).toISOString() };
   }
   // If the response is not OK, we return an error.
@@ -186,8 +214,8 @@ async function getNowPlaying(accessToken: string) {
 async function getAppleDeveloperToken(env: Env) {
   try {
 
-    const privateKey = await importPKCS8(env.APPLE_PRIVATE_KEY, 'ES256');
-    const alg = 'ES256';
+    const privateKey = await importPKCS8(env.APPLE_PRIVATE_KEY, JWT_ALGORITHM);
+    const alg = JWT_ALGORITHM;
 
     const jwt = await new SignJWT({})
       .setProtectedHeader({
@@ -196,7 +224,7 @@ async function getAppleDeveloperToken(env: Env) {
       })
       .setIssuedAt()
       .setIssuer(env.APPLE_TEAM_ID) // Your Team ID
-      .setExpirationTime('1h'); // Token is valid for 1 hour
+      .setExpirationTime(APPLE_TOKEN_EXPIRY); // Token is valid for 1 hour
 
     return jwt.sign(privateKey);
   } catch (err) {
@@ -224,7 +252,7 @@ async function getAppleMusicData(env: Env, musicUserToken: string) {
       },
     });
 
-    if (response.status > 204 || !response.body) {
+    if (response.status > HTTP_NO_CONTENT || !response.body) {
       return { isPlaying: false, timeStamp: new Date().toISOString(), success: false, error: `Failed to fetch from Apple Music. Status: ${response.status} ${response.statusText}` };
     }
 
@@ -234,10 +262,9 @@ async function getAppleMusicData(env: Env, musicUserToken: string) {
 
     const durationInMillis = lastSong.attributes.durationInMillis;
 
-    const cachedState: AppleCacheState | null = await env.APPLE_STATE_CACHE.get('last_apple_song', { type: 'json' });
+    const cachedState: AppleCacheState | null = await env.APPLE_STATE_CACHE.get(APPLE_SONG_CACHE_KEY, { type: 'json' });
 
-    const oneSongAgo = Date.now() - durationInMillis
-
+    const oneSongAgo = Date.now() - durationInMillis;
 
     // If the current song is the same one we have in cache, it could be old. 
     if (cachedState && cachedState.songId === songId) {
@@ -251,7 +278,7 @@ async function getAppleMusicData(env: Env, musicUserToken: string) {
     } else {
       // There's a new song, so we update the cache with the new song ID and current timestamp.
       const newState: AppleCacheState = { songId: songId, cachedAt: Date.now() };
-      await env.APPLE_STATE_CACHE.put('last_apple_song', JSON.stringify(newState));
+      await env.APPLE_STATE_CACHE.put(APPLE_SONG_CACHE_KEY, JSON.stringify(newState));
       return formatAppleSong(lastSong, false, Date.now());
     }
 
@@ -277,7 +304,7 @@ function formatAppleSong(song: any, isLive: boolean, timestamp: number) {
     title: song.attributes.name,
     artist: song.attributes.artistName,
     album: song.attributes.albumName,
-    albumImageUrl: song.attributes.artwork.url.replace('{w}', '500').replace('{h}', '500'),
+    albumImageUrl: song.attributes.artwork.url.replace('{w}', ALBUM_IMAGE_WIDTH).replace('{h}', ALBUM_IMAGE_HEIGHT),
     songUrl: song.attributes.url,
   };
 }
