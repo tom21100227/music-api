@@ -63,7 +63,18 @@ export default {
     // If Spotify is playing, return that. Otherwise, check if Apple Music was playing recently.
     console.log('Spotify Data:', spotify);
     console.log('Apple Music Data:', apple);
-    const responseData = spotify.isPlaying ? spotify : apple;
+
+    let responseData;
+    if (spotify.isPlaying) {
+      responseData = spotify;
+    } else if (apple.isPlaying) {
+      responseData = apple;
+    } else {
+      // Compare timestamps to find the most recent
+      const spotifyTime = spotify.timeStamp ? new Date(spotify.timeStamp).getTime() : 0;
+      const appleTime = apple.timeStamp ? new Date(apple.timeStamp).getTime() : 0;
+      responseData = spotifyTime >= appleTime ? spotify : apple;
+    }
 
     if (responseData.success) {
       ctx.waitUntil(
