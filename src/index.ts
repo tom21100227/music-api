@@ -1,16 +1,3 @@
-/**
- * Welcome to Cloudflare Workers! This is your first worker.
- *
- * - Run `npm run dev` in your terminal to start a development server
- * - Open a browser tab at http://localhost:8787/ to see your worker in action
- * - Run `npm run deploy` to publish your worker
- *
- * Bind resources to your worker in `wrangler.jsonc`. After adding bindings, a type definition for the
- * `Env` object can be regenerated with `npm run cf-typegen`.
- *
- * Learn more at https://developers.cloudflare.com/workers/
- */
-
 import { SignJWT, importPKCS8 } from 'jose';
 import { KVNamespace } from '@cloudflare/workers-types';
 
@@ -78,7 +65,7 @@ interface ApiResponse {
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     // If the request specified cache=false, skip the cache
-    if (new URL(request.url).searchParams.get('noCache') === 'true') {
+    if (new URL(request.url).searchParams.get(NO_CACHE_PARAM) === NO_CACHE_VALUE) {
       console.log('Cache bypassed due to request parameter.');
       env.RESULT_CACHE.delete(NOW_PLAYING_CACHE_KEY);
     } else {
@@ -87,11 +74,10 @@ export default {
 
       if (cachedResult) {
         return new Response(JSON.stringify(cachedResult, null, 2), {
-          headers: { 'Content-Type': 'application/json', 'X-Cache-Status': 'HIT' , 'Access-Control-Allow-Origin': '*' },
+          headers: { 'Content-Type': 'application/json', 'X-Cache-Status': 'HIT', 'Access-Control-Allow-Origin': '*' },
         });
       }
     }
-
 
     const appleMusicUserToken = env.APPLE_MUSIC_USER_TOKEN;
 
