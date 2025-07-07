@@ -32,6 +32,20 @@ const NOW_PLAYING_ENDPOINT = `https://api.spotify.com/v1/me/player/currently-pla
 const TOKEN_ENDPOINT = `https://accounts.spotify.com/api/token`;
 const APPLE_RECENTLY_PLAYED_ENDPOINT = `https://api.music.apple.com/v1/me/recent/played/tracks?limit=1`;
 
+interface ApiResponse {
+  success: boolean;
+  isPlaying: boolean;
+  timeStamp: string;
+  source?: string;
+  title?: string;
+  artist?: string;
+  album?: string;
+  albumImageUrl?: string;
+  songUrl?: string;
+  error?: string;
+}
+
+
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     // If the request specified cache=false, skip the cache
@@ -41,7 +55,7 @@ export default {
     } else {
       // Check if there is a cached result first
       const cachedResult = await env.RESULT_CACHE.get('now_playing_result', { type: 'json' });
-  
+
       if (cachedResult) {
         console.log("Cache Hit")
         return new Response(JSON.stringify(cachedResult, null, 2), {
@@ -49,12 +63,12 @@ export default {
         });
       }
     }
-    
+
 
     const appleMusicUserToken = env.APPLE_MUSIC_USER_TOKEN;
 
     // Run both API calls in parallel
-    const [spotify, apple] = await Promise.all([
+    const [spotify, apple]: [ApiResponse, ApiResponse] = await Promise.all([
       getSpotifyData(env),
       getAppleMusicData(env, appleMusicUserToken)
     ]);
@@ -95,7 +109,7 @@ export default {
 async function getSpotifyData(env: Env) {
   const accessToken = await getAccessToken(env);
   if (!accessToken) {
-    return { isPlaying: false, error: 'Could not get access token.' };
+    return { success: false, isPlaying: false, timeStamp: new Date().toISOString(), error: 'Could not get access token for Spotify.' };
   }
   return getNowPlaying(accessToken);
 }
@@ -135,17 +149,19 @@ async function getNowPlaying(accessToken: string) {
 
   // If nothing is playing, Spotify returns a 204 No Content response.
   if (response.status === 204) {
-    return { success: true, isPlaying: false };
+    return { success: true, isPlaying: false, timeStamp: new Date(0).toISOString() };
   }
   // If the response is not OK, we return an error.
   if (!response.ok) {
     return {
       success: false,
       isPlaying: false,
+      timeStamp: new Date().toISOString(),
+      error: `Failed to fetch from Spotify. Status: ${response.status} ${response.statusText}`,
     };
   }
 
-  const song = await response.json();
+  const song: any = await response.json();
 
   // We are structuring the response to only include the data we care about.
   return {
@@ -194,7 +210,7 @@ interface AppleCacheState {
 async function getAppleMusicData(env: Env, musicUserToken: string) {
   const developerToken = await getAppleDeveloperToken(env);
   if (!developerToken || !musicUserToken) {
-    return { isPlaying: false, error: 'Could not generate Apple Developer Token.' };
+    return { success: false, isPlaying: false, timeStamp: new Date().toISOString(), error: 'Could not generate Apple Developer Token.' };
   }
 
   try {
@@ -206,14 +222,14 @@ async function getAppleMusicData(env: Env, musicUserToken: string) {
     });
 
     if (response.status > 204 || !response.body) {
-      return { isPlaying: false };
+      return { isPlaying: false, timeStamp: new Date().toISOString(), success: false, error: `Failed to fetch from Apple Music. Status: ${response.status} ${response.statusText}` };
     }
 
-    const { data } = await response.json();
+    const { data }: any = await response.json();
     const lastSong = data[0];
     const songId = lastSong.id;
 
-    const cachedState: AppleCacheState | null = await env.APPLE_STATE_CACHE.get('apple_music_state', { type: 'json' });
+    const cachedState: AppleCacheState | null = await env.APPLE_STATE_CACHE.get('last_apple_song', { type: 'json' });
 
     const fiveMinutesAgo = Date.now() - 5 * 60 * 1000; // 5 minutes in milliseconds
 
@@ -233,6 +249,7 @@ async function getAppleMusicData(env: Env, musicUserToken: string) {
     return {
       success: false,
       isPlaying: false,
+      timeStamp: new Date().toISOString(),
       error: 'Failed to fetch from Apple Music. Is the User Token valid?'
     };
   }
@@ -252,15 +269,3 @@ function formatAppleSong(song: any, isLive: boolean, timestamp: number) {
     songUrl: song.attributes.url,
   };
 }
-
-// return {
-//     success: true,
-//     source: 'Spotify',
-//     timeStamp: new Date(song.timestamp).toISOString(),
-//     isPlaying: song.is_playing,
-//     title: song.item.name,
-//     artist: song.item.artists.map((_artist: any) => _artist.name).join(', '),
-//     album: song.item.album.name,
-//     albumImageUrl: song.item.album.images[0].url,
-//     songUrl: song.item.external_urls.spotify,
-//   };
