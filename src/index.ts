@@ -59,7 +59,7 @@ export default {
       if (cachedResult) {
         console.log("Cache Hit")
         return new Response(JSON.stringify(cachedResult, null, 2), {
-          headers: { 'Content-Type': 'application/json', 'X-Cache-Status': 'HIT' },
+          headers: { 'Content-Type': 'application/json', 'X-Cache-Status': 'HIT' , 'Access-Control-Allow-Origin': '*' },
         });
       }
     }
@@ -99,7 +99,7 @@ export default {
     }
 
     return new Response(JSON.stringify(responseData, null, 2), {
-      headers: { 'Content-Type': 'application/json', 'X-Cache-Status': 'MISS' },
+      headers: { 'Content-Type': 'application/json', 'X-Cache-Status': 'MISS', 'Access-Control-Allow-Origin': '*' },
     });
   },
 };
