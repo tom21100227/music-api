@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Apple Music Token Generator</title>
+  <script src="https://js-cdn.music.apple.com/musickit/v1/musickit.js"></script>
+</head>
+<body>
+  <h1>Get Your Apple Music User Token</h1>
+  <p>1. Run your Cloudflare Worker (npx wrangler dev) and copy the 'developerToken' value.</p>
+  <p>2. Paste it below and click the button.</p>
+
+  <textarea id="dev-token" placeholder="Paste your Developer Token here..." style="width: 100%; height: 100px;"></textarea>
+  <br/><br/>
+  <button id="login-btn">Log In to Apple Music</button>
+
+  <h2>Your Music User Token:</h2>
+  <pre id="token-output" style="background-color: #eee; padding: 10px; word-wrap: break-word;">(Token will appear here)</pre>
+
+  <script>
+    const loginButton = document.getElementById('login-btn');
+    const devTokenInput = document.getElementById('dev-token');
+    const tokenOutput = document.getElementById('token-output');
+
+    loginButton.addEventListener('click', async () => {
+      if (!devTokenInput.value) {
+        tokenOutput.textContent = 'Please paste in your developer token first.';
+        return;
+      }
+
+      try {
+        const music = await MusicKit.configure({
+          developerToken: devTokenInput.value,
+          app: {
+            name: 'My Auth App',
+            build: '1.0.0'
+          }
+        });
+
+        const userToken = await music.authorize();
+        tokenOutput.textContent = userToken;
+      } catch (error) {
+        console.error(error);
+        tokenOutput.textContent = `An error occurred: ${error.message}`;
+      }
+    });
+  </script>
+</body>
+</html>

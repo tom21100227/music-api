@@ -21,6 +21,7 @@ export interface Env {
   APPLE_TEAM_ID: string;
   APPLE_KEY_ID: string;
   APPLE_PRIVATE_KEY: string;
+  APPLE_MUSIC_USER_TOKEN: string; // This is the user token for Apple Music
 }
 
 // Spotify API endpoints
@@ -29,26 +30,27 @@ const TOKEN_ENDPOINT = `https://accounts.spotify.com/api/token`;
 const APPLE_RECENTLY_PLAYED_ENDPOINT = `https://api.music.apple.com/v1/me/recent/played/tracks?limit=1`;
 
 export default {
-  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
-    // We can run both requests in parallel for better performance
-    const [spotifyData, appleDeveloperToken] = await Promise.all([
-      getSpotifyData(env),
-      getAppleDeveloperToken(env),
-    ]);
+	async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+		// For a real app, you'd get the user token from the request header.
+		// For testing, we fall back to the one in our .dev.vars file.
+		const musicUserToken = env.APPLE_MUSIC_USER_TOKEN;
 
-    // For now, we'll just return both results to see that they're working
-    const combinedResponse = {
-      spotify: spotifyData,
-      apple: {
-        developerToken: appleDeveloperToken,
-        // We will add recentlyPlayed data here in the next major step
-      },
-    };
+		// Run both API calls in parallel
+		const [spotify, apple] = await Promise.all([
+			getSpotifyData(env), 
+			getAppleMusicData(env, musicUserToken)
+		]);
 
-    return new Response(JSON.stringify(combinedResponse, null, 2), {
-      headers: { 'Content-Type': 'application/json' },
-    });
-  },
+		// Final Logic: Spotify takes priority.
+		// If Spotify is playing, return that. Otherwise, check if Apple Music was playing recently.
+    console.log('Spotify Data:', spotify);
+    console.log('Apple Music Data:', apple);
+		const responseData = spotify.isPlaying ? spotify : apple;
+
+		return new Response(JSON.stringify(responseData, null, 2), {
+			headers: { 'Content-Type': 'application/json' },
+		});
+	},
 };
 
 
@@ -103,6 +105,8 @@ async function getNowPlaying(accessToken: string) {
 
   // We are structuring the response to only include the data we care about.
   return {
+    source: 'Spotify',
+    timeStamp: new Date(song.timestamp).toISOString(),
     isPlaying: song.is_playing,
     title: song.item.name,
     artist: song.item.artists.map((_artist: any) => _artist.name).join(', '),
@@ -110,11 +114,6 @@ async function getNowPlaying(accessToken: string) {
     albumImageUrl: song.item.album.images[0].url,
     songUrl: song.item.external_urls.spotify,
   };
-}
-
-async function getAppleMusicData(env: Env) {
-  // We'll add logic here soon
-  return { message: "Apple Music logic goes here" };
 }
 
 /**
@@ -140,4 +139,44 @@ async function getAppleDeveloperToken(env: Env) {
     console.error('Apple Music Token Generation Error:', err);
     return null;
   }
+}
+
+async function getAppleMusicData(env: Env, musicUserToken: string) {
+	const developerToken = await getAppleDeveloperToken(env);
+	if (!developerToken) {
+		return { isPlaying: false, error: 'Could not generate Apple Developer Token.' };
+	}
+
+	try {
+		const response = await fetch(APPLE_RECENTLY_PLAYED_ENDPOINT, {
+			headers: {
+				Authorization: `Bearer ${developerToken}`,
+				'Music-User-Token': musicUserToken,
+			},
+		});
+
+		if (response.status > 204 || !response.body) {
+			return { isPlaying: false };
+		}
+
+		const { data } = await response.json();
+		const lastSong = data[0];
+		
+    return {
+      isPlaying: null,
+      timeStamp: null,
+      source: 'Apple Music',
+      title: lastSong.attributes.name,
+      artist: lastSong.attributes.artistName,
+      album: lastSong.attributes.albumName,
+      albumImageUrl: lastSong.attributes.artwork.url.replace('{w}', '500').replace('{h}', '500'),
+      songUrl: lastSong.attributes.url,
+    };
+		
+
+	} catch (error) {
+    console.error('Apple Music API Error:', error);
+		return { isPlaying: false, 
+      error: 'Failed to fetch from Apple Music. Is the User Token valid?'};
+	}
 }
