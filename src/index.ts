@@ -86,7 +86,6 @@ export default {
       const cachedResult = await env.RESULT_CACHE.get(NOW_PLAYING_CACHE_KEY, { type: 'json' });
 
       if (cachedResult) {
-        console.log("Cache Hit")
         return new Response(JSON.stringify(cachedResult, null, 2), {
           headers: { 'Content-Type': 'application/json', 'X-Cache-Status': 'HIT' , 'Access-Control-Allow-Origin': '*' },
         });
@@ -102,21 +101,23 @@ export default {
       getAppleMusicData(env, appleMusicUserToken)
     ]);
 
-    // Final Logic: Spotify takes priority.
-    // If Spotify is playing, return that. Otherwise, check if Apple Music was playing recently.
-    console.log('Spotify Data:', spotify);
-    console.log('Apple Music Data:', apple);
-
     let responseData;
     if (spotify.isPlaying) {
+      console.log('Returning Spotify data (is playing):', spotify.title);
       responseData = spotify;
     } else if (apple.isPlaying) {
+      console.log('Returning Apple Music data (is playing):', apple.title);
       responseData = apple;
     } else {
       // Compare timestamps to find the most recent
       const spotifyTime = spotify.timeStamp ? new Date(spotify.timeStamp).getTime() : 0;
       const appleTime = apple.timeStamp ? new Date(apple.timeStamp).getTime() : 0;
       responseData = spotifyTime >= appleTime ? spotify : apple;
+      if (spotifyTime < appleTime) {
+        console.log('Returning Apple Music data (more recent):', apple.title);
+      } else {
+        console.log('Returning Spotify data (more recent):', spotify.title);
+      }
     }
 
     if (responseData.success) {
@@ -139,6 +140,7 @@ export default {
 async function getSpotifyData(env: Env) {
   const accessToken = await getAccessToken(env);
   if (!accessToken) {
+    console.error('Spotify: Could not get access token.');
     return { success: false, isPlaying: false, timeStamp: new Date().toISOString(), error: 'Could not get access token for Spotify.' };
   }
   return getNowPlaying(accessToken);
@@ -179,10 +181,12 @@ async function getNowPlaying(accessToken: string) {
 
   // If nothing is playing, Spotify returns a 204 No Content response.
   if (response.status === HTTP_NO_CONTENT) {
+    console.log('Spotify: No track is currently playing.');
     return { success: true, isPlaying: false, timeStamp: new Date(0).toISOString() };
   }
   // If the response is not OK, we return an error.
   if (!response.ok) {
+    console.error('Spotify API Error:', response.status, response.statusText);
     return {
       success: false,
       isPlaying: false,
@@ -194,6 +198,7 @@ async function getNowPlaying(accessToken: string) {
   const song: any = await response.json();
 
   // We are structuring the response to only include the data we care about.
+  console.log('Spotify: Query Successful, currently playing:', song.item.name);
   return {
     success: true,
     source: 'Spotify',
@@ -270,25 +275,23 @@ async function getAppleMusicData(env: Env, musicUserToken: string) {
     if (cachedState && cachedState.songId === songId) {
       if (Date.now() > oneSongAgo) {
         // The cached song is not being played live, return with isLive = false
-        console.log('Using cached song (not playing):', lastSong.attributes.name);
+        console.log('Apple Music: Using cached song (not playing):', lastSong.attributes.name);
         return formatAppleSong(lastSong, false, cachedState.cachedAt);
       } else {
         // The cached song is being played live, return with isLive = true
-        console.log('Using cached song (playing):', lastSong.attributes.name);
-        console.log('Cached at:', new Date(cachedState.cachedAt).toISOString());
-        console.log("Current time:", new Date().toISOString());
-        console.log("One song ago:", new Date(oneSongAgo).toISOString());
+        console.log('Apple Music: Using cached song (playing):', lastSong.attributes.name);
         return formatAppleSong(lastSong, true, cachedState.cachedAt);
       }
     } else {
       // There's a new song, so we update the cache with the new song ID and current timestamp.
+      console.log('Apple Music: New song detected, updating cache:', lastSong.attributes.name);
       const newState: AppleCacheState = { songId: songId, cachedAt: Date.now() };
       await env.APPLE_STATE_CACHE.put(APPLE_SONG_CACHE_KEY, JSON.stringify(newState));
       return formatAppleSong(lastSong, false, Date.now());
     }
 
   } catch (error) {
-    console.log('Apple Music API Error:', error);
+    console.error('Apple Music API Error:', error);
     return {
       success: false,
       isPlaying: false,
