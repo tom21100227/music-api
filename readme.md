@@ -79,7 +79,9 @@ Apple Music's API is quite different. Unlike Spotify, **you have to pay for an A
 1. **Team ID**: your Apple Developer Team ID.
 2. **Key ID**: the identifier of the key you created in the Apple Developer Portal.
 3. **Private Key**: the private key you downloaded when you created the key in the Apple Developer Portal, it's a `.p8` file.
-4. **Music User Token**: a token that represents the user, you can get this by authenticating the user with MusicKit JS or iOS SDK. I made a static website that does it. 
+4. **Music User Token**: a token that represents the user, you can get this by authenticating the user with MusicKit JS or iOS SDK. I made [a static website that does it](src/apple_auth.html). 
+
+Steps to get those: 
 
 1. Create a Media ID: In the sidebar, select Identifiers and click the (+) button to add a new one. Choose Media IDs from the list and click Continue.
 2. Create a Private Key for MusicKit: Under Media Services, check the box for MusicKit.
@@ -121,5 +123,4 @@ Now your API should be live and accessible at the URL provided by Cloudflare Wor
 ## Roadmap
 
 - [ ] Add support for more music services (If I use ever use them)
-- [ ] Add tutorials for how to set this whole thing up with Cloudflare Workers
 - [ ] Add tests
