@@ -170,3 +170,8 @@ dist
 
 .dev.vars
 .wrangler/
+
+# macOS stuff
+
+.DS_Store
+Thumbs.db
