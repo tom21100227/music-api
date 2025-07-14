@@ -8,6 +8,8 @@ on:
 
 jobs:
   deploy:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     name: Deploy
     steps:
