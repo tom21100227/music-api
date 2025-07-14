@@ -64,11 +64,11 @@ I would not be on my computer every hour to refresh the token, so I need another
 3. This will redirect you to the callback URL with a `code` parameter in the query, that is the authorization code.
 4. Make the following request to get the actual Token:
 ```sh
-curl -d client_id=YOUR_CLIENT_ID
-     -d client_secret=YOUR_CLIENT_SECRET
-     -d grant_type=authorization_code
-     -d code=CODE_FROM_URL
-     -d redirect_uri=https://yourdomain.com/callback
+curl -d client_id=YOUR_CLIENT_ID \
+     -d client_secret=YOUR_CLIENT_SECRET \
+     -d grant_type=authorization_code \
+     -d code=CODE_FROM_URL \
+     -d redirect_uri=https://yourdomain.com/callback \
      https://accounts.spotify.com/api/token
 ```
 
